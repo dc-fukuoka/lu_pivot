@@ -24,7 +24,7 @@ $ ./a.out
    1.00000E+00
    1.00000E+00
  LU decomposition maximum error:  0.000000000000000E+000
- time[s]:  0.000000000000000E+000
+ time[s]:  3.000000000000000E-004
  solution vector:
    8.33333E-01
    4.34783E-01
