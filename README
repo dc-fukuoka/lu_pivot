@@ -1,5 +1,5 @@
 asymmetric linear system solver by using LU decomposition + partial pivoting.
-this is a direct method, so not so suitable for parallization. (just for my study)
+this is a direct method, so not so suitable for parallelization. (just for my study)
 and this is for a study of FEM.
 
 $ make
