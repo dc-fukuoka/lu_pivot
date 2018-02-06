@@ -39,6 +39,8 @@ contains
     a(6,    3)    = -4.0d0
     a(4,    5)    = 5.0d0
     a(5,    4)    = -5.0d0
+
+    write(6, *) "size:", size
 #ifdef _DEBUG
     write(6, *) "matrix A:"
     do i = 1, size

@@ -1,39 +1,18 @@
 asymmetric linear system solver by using LU decomposition + partial pivoting.
 this is a direct method, so not so suitable for parallelization. (just for my study)
+it is parallelized by OpenMP, but many loop form is triangular(do j=1,size; do i=2,j), load balance is not good.
 and this is for a study of FEM.
 
 $ make
 $ ./a.out
- matrix A:
-   1.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00  -2.00000E+00
-   0.00000E+00   2.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00  -3.00000E+00   0.00000E+00
-   0.00000E+00   0.00000E+00   3.00000E+00   0.00000E+00   0.00000E+00   4.00000E+00   0.00000E+00   0.00000E+00
-   0.00000E+00   0.00000E+00   0.00000E+00   4.00000E+00   5.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00
-   0.00000E+00   0.00000E+00   0.00000E+00  -5.00000E+00   5.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00
-   0.00000E+00   0.00000E+00  -4.00000E+00   0.00000E+00   0.00000E+00   6.00000E+00   0.00000E+00   0.00000E+00
-   0.00000E+00   3.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   7.00000E+00   0.00000E+00
-   2.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   8.00000E+00
-
- right hand side vector b:
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
-   1.00000E+00
- LU decomposition maximum error:  0.000000000000000E+000
- time[s]:  3.000000000000000E-004
- solution vector:
-   8.33333E-01
-   4.34783E-01
-   5.88235E-02
-   0.00000E+00
-   2.00000E-01
-   2.05882E-01
-  -4.34783E-02
-  -8.33333E-02
+$ OMP_NUM_THREADS=1 ./a.out
+ size:        1024
+ time[s]:   2.68140000000000
  check the result: calc res = b - A*x
- residual:  1.570092458683775E-016
+ residual:  1.059085265505628E-015
 
+$ OMP_NUM_THREADS=16 KMP_AFFINITY=compact ./a.out
+ size:        1024
+ time[s]:  0.284400000000000
+ check the result: calc res = b - A*x
+ residual:  1.059085265505628E-015
