@@ -16,3 +16,13 @@ $ OMP_NUM_THREADS=16 KMP_AFFINITY=compact ./a.out
  time[s]:  0.284400000000000
  check the result: calc res = b - A*x
  residual:  1.059085265505628E-015
+
+* for a comparison, the case with BiCGSTAB method + 16 threads:
+
+$ OMP_NUM_THREADS=16 KMP_AFFINITY=compact ./a.out
+ size:        1024
+ BiCGSTAB method converged.
+ iter, res:         161  7.729346016224966E-011
+ time[s]:  9.450000000000000E-002
+ check the result: calc res = b - A*x
+ residual:  7.729346016224966E-011
