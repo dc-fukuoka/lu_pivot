@@ -26,3 +26,5 @@ $ OMP_NUM_THREADS=16 KMP_AFFINITY=compact ./a.out
  time[s]:  9.450000000000000E-002
  check the result: calc res = b - A*x
  residual:  7.729346016224966E-011
+
+the CPU used is Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz(8 cores), 2 sockets.
