@@ -174,7 +174,7 @@ contains
     real(dp),dimension(size, size),intent(out) :: lu
     integer :: i, j, k
     integer :: ip, tmp_ip
-    real(dp) :: tmp, min0, w
+    real(dp) :: tmp, max0, w
 
     lu = a
     
@@ -183,18 +183,18 @@ contains
     end do
 
     do k = 1, size-1
-       min0 = abs(lu(k, k))
+       max0 = abs(lu(k, k))
        ip = k
        
        do i = k+1, size
           tmp = abs(lu(i, k))
-          if (min0 < tmp) then
-             min0 = tmp
+          if (tmp < max0) then
+             max0 = tmp
              ip  = i
           end if
        end do       
 
-       if (min0 <= tol) then
+       if (max0 <= tol) then
           write(6, *) "one of diagonal component is smaller than", tol
           stop
        end if
