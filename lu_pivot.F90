@@ -1,7 +1,7 @@
 module params
   implicit none
   integer,parameter :: dp = kind(1.0d0)
-  integer,parameter :: size = 8
+  integer,parameter :: size = 1024
 
   integer,parameter :: iter_max = 10000
   real(dp),parameter :: tol = 1.0d-10
@@ -32,7 +32,7 @@ contains
     ierr = vsldeletestream(stream)
 
   end subroutine gen_rand
-  
+
   subroutine init(size, a, x, b)
     implicit none
     integer,intent(in) :: size
@@ -40,7 +40,7 @@ contains
     real(dp),dimension(size),intent(out) :: x, b
     integer :: i, j
 
-#if 0
+#ifdef _SMALL
     !$omp parallel
     !$omp workshare
     a = 0.0d0
@@ -71,7 +71,8 @@ contains
     !$omp end parallel
     call gen_rand(size**2, 5555, 0.0d0, 1.0d0, a)
 #endif
-
+    write(6, *) "size:", size
+#ifdef _SMALL
     write(6, *) "matrix A:"
     do i = 1, size
        write(6,'(8(1pe14.5))') (a(i, j), j = 1, size)
@@ -82,7 +83,7 @@ contains
     do i = 1, size
        write(6, '(1pe14.5)') b(i)
     end do
-    
+#endif
   end subroutine init
 
   ! ax = A*x
@@ -176,19 +177,23 @@ contains
     integer :: ip, tmp_ip
     real(dp) :: tmp, max0, w
 
+    !$omp parallel
+    !$omp workshare
     lu = a
-    
+    !$omp end workshare
+    !$omp do
     do i = 1, size
        ipivot(i) = i
     end do
-
+    !$omp end do
+    !$omp end parallel
     do k = 1, size-1
        max0 = abs(lu(k, k))
        ip = k
-       
+       ! this loop is impossible to parallelize for me
        do i = k+1, size
           tmp = abs(lu(i, k))
-          if (tmp < max0) then
+          if (tmp > max0) then
              max0 = tmp
              ip  = i
           end if
@@ -200,6 +205,7 @@ contains
        end if
 
        if (ip .ne. k) then
+          !$omp parallel do private(tmp)
           do j = k, size
              tmp       = lu(ip, j)
              lu(ip, j) = lu(k,  j)
@@ -208,14 +214,14 @@ contains
           tmp_ip     = ipivot(ip)
           ipivot(ip) = ipivot(k)
           ipivot(k)  = tmp_ip
-
+          !$omp parallel do private(tmp)
           do j = 1, k-1
              tmp       = lu(k, j)
              lu(k,  j) = lu(ip, j)
              lu(ip, j) = tmp
           end do
        end if
-
+       !$omp parallel do private(w)
        do i = k+1, size
           w        = lu(i, k)/lu(k, k)
           lu(i, k) = w
@@ -225,6 +231,8 @@ contains
           end do
        end do
     end do
+
+    ! write(100, *) ipivot ! for a debug
     
   end subroutine lu_decomp
 
@@ -244,10 +252,13 @@ contains
     real(dp) :: tmp
     integer :: i, j
 
+    !$omp parallel
+    !$omp workshare
     lu     = 0.0d0
     ipivot = 0
     x      = 0.0d0
-    
+    !$omp end workshare
+    !$omp end parallel
     call lu_decomp(size, a, ipivot, lu)
 
 #ifdef _DEBUG
@@ -259,6 +270,7 @@ contains
     y(1) = b(ipivot(1))
     do i = 2, size
        tmp = 0.0d0
+       !$omp parallel do reduction(+:tmp)
        do j = 1, i-1
           tmp = tmp + lu(i, j)*y(j)
        end do
@@ -269,6 +281,7 @@ contains
     x(size) = y(size)/lu(size, size)
     do i = size-1, 1, -1
        tmp = 0.0d0
+       !$omp parallel do reduction(+:tmp)
        do j = i+1, size
           tmp = tmp + lu(i, j)*x(j)
        end do
@@ -286,18 +299,23 @@ contains
     integer i, j, k
     real(dp) :: max_err, diff
 
-    l = 0.0d0
-    u = 0.0d0
+    !$omp parallel
+    !$omp workshare
+    l   = 0.0d0
+    u   = 0.0d0
     lu2 = lu
+    !$omp end workshare
     
     ! for upper triangular matrix U
+    !$omp do
     do j = 1, size
        do i = 1, j
           u(i, j) = lu2(i, j)
        end do
     end do
-
+    !$omp end do
     ! for lower triangular matrix L
+    !$omp do
     do j = 1, size
        do i = 1, j
           if (i == j) then
@@ -307,8 +325,8 @@ contains
           end if
        end do
     end do
-
-    lu2 = 0.0d0
+    !$omp end do
+    !$omp end parallel
     call a_dot_b(size, l, u, lu2)
     call sort_mat(size, ipivot, lu2)
 
@@ -320,7 +338,7 @@ contains
           if (diff >= max_err) max_err = diff
        end do
     end do
-#if 1
+#ifdef _SMALL
     write(6, *) "ipivot:"
     do i = 1, size
        write(6,'(i4, " : " ,i4)') i, ipivot(i)
@@ -331,8 +349,8 @@ contains
        write(6,'(8(1pe14.5))') (lu2(i, j), j = 1, size)
     end do
     write(6, *) "---"
-    write(6, *) "LU decomposition maximum error:", max_err
 #endif
+    write(6, *) "LU decomposition maximum error:", max_err
 
   end subroutine check_lu
 #if 0
@@ -360,14 +378,23 @@ contains
     real(dp),dimension(size, size) :: a_tmp
     integer :: i
 
+    !$omp parallel
+    !$omp workshare
     a_tmp = 0.0d0
+    !$omp end workshare
+    !$omp end parallel
     do i = 1, size
        a_tmp(ipivot(i), :) = a(i, :)
     end do
+    !$omp parallel
+    !$omp workshare
     a = a_tmp
+    !$omp end workshare
+    !$omp end parallel
 
   end subroutine sort_mat
-#endif ! _DEBUG
+#endif
+! _DEBUG
 end module subs
 
 program main
@@ -387,12 +414,12 @@ program main
   call system_clock(c(2))
   time = 1.0d0*(c(2)-c(1))/c_rate
   write(6, *) "time[s]:", time
-
+#ifdef _SMALL
   write(6, *) "solution vector:"
   do i = 1, size
      write(6, '(1pe14.5)') x(i)
   end do
-
+#endif
   write(6, *) "check the result: calc res = b - A*x"
   call b_minus_ax(size, a, x, b, r)
   call x_dot_y(size, r, r, res)
