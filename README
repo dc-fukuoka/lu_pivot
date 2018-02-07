@@ -1,6 +1,6 @@
 asymmetric linear system solver by using LU decomposition + partial pivoting.
 this is a direct method, so not so suitable for parallelization. (just for my study)
-parallelized the code by OpenMP, but not so good(there is an unparallelized loop, at least from me and many loops were parallelized in inner loops)
+parallelized the code by OpenMP, but not so good(there are some unparallelized loops, at least from me and many loops were parallelized in inner loops)
 and this is for a study of FEM.
 
 $ make
