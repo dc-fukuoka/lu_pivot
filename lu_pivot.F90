@@ -335,7 +335,7 @@ contains
     do j = 1, size
        do i = 1, size
           diff = abs(a(i, j)-lu2(i, j))
-          if (diff >= max_err) max_err = diff
+          max_err = max(max_err, diff)
        end do
     end do
 #ifdef _SMALL
