@@ -1,12 +1,21 @@
 fc      = ifort
-fcflags = -g -O3 -mavx -fopenmp
-src     = lu_pivot.F90
+fcflags = -D_DEBUG -g -O3 -mavx -fopenmp
+srcs    = lu_pivot.F90
+objs    = $(srcs:%.F90=%.o)
 bin     = a.out
-
-$(bin): $(src)
-	$(fc) $(fcflags) $^ -o $@
+vsl     = mkl_vsl.mod
+libs    = -mkl
 
 all: $(bin)
+
+$(vsl):  $(MKLROOT)/include/mkl_vsl.f90
+	$(fc) -c $(fcflags) $<
+
+$(objs): $(srcs) $(vsl)
+	$(fc) -c $(fcflags) $<
+
+$(bin): $(objs)
+	$(fc) $(fcflags) $^ -o $@ $(libs)
 
 clean:
 	rm -f $(bin) *.mod

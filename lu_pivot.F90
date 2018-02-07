@@ -11,6 +11,28 @@ module subs
   use params
   implicit none
 contains
+    subroutine gen_rand(size, seed, val_min, val_max, a)
+    use mkl_vsl_type
+    use mkl_vsl
+    implicit none
+    integer,intent(in) :: size, seed
+    real(dp),intent(in) :: val_min, val_max
+    real(dp),dimension(size, size),intent(out) :: a
+    integer :: ierr
+    integer :: brng, method
+    type(vsl_stream_state) :: stream
+
+    brng   = vsl_brng_mt19937
+!   for older intel MKL
+!   method = vsl_method_duniform_std
+    method = vsl_rng_method_uniform_std_accurate
+
+    ierr = vslnewstream(stream, brng, seed)
+    ierr = vdrnguniform(method, stream, size, a, val_min, val_max)
+    ierr = vsldeletestream(stream)
+
+  end subroutine gen_rand
+  
   subroutine init(size, a, x, b)
     implicit none
     integer,intent(in) :: size
@@ -18,6 +40,7 @@ contains
     real(dp),dimension(size),intent(out) :: x, b
     integer :: i, j
 
+#if 0
     !$omp parallel
     !$omp workshare
     a = 0.0d0
@@ -39,6 +62,15 @@ contains
     a(6, 3) = -4.0d0
     a(4, 5) = 5.0d0
     a(5, 4) = -5.0d0
+#else
+    !$omp parallel
+    !$omp workshare
+    x = 0.0d0
+    b = 1.0d0
+    !$omp end workshare
+    !$omp end parallel
+    call gen_rand(size**2, 5555, 0.0d0, 1.0d0, a)
+#endif
 
     write(6, *) "matrix A:"
     do i = 1, size
@@ -142,8 +174,7 @@ contains
     real(dp),dimension(size, size),intent(out) :: lu
     integer :: i, j, k
     integer :: ip, tmp_ip
-    real(dp) :: tmp, max, w
-    real(dp),parameter :: tol = 1.0d-10
+    real(dp) :: tmp, min0, w
 
     lu = a
     
@@ -152,18 +183,18 @@ contains
     end do
 
     do k = 1, size-1
-       max = abs(lu(k, k))
+       min0 = abs(lu(k, k))
        ip = k
        
        do i = k+1, size
           tmp = abs(lu(i, k))
-          if (max < tmp) then
-             max = tmp
+          if (min0 < tmp) then
+             min0 = tmp
              ip  = i
           end if
        end do       
 
-       if (max <= tol) then
+       if (min0 <= tol) then
           write(6, *) "one of diagonal component is smaller than", tol
           stop
        end if
@@ -257,13 +288,6 @@ contains
 
     l = 0.0d0
     u = 0.0d0
-#if 0
-    write(6, *) "ipivot:"
-    do i = 1, size
-       write(6,'(i4)') ipivot(i)
-    end do
-    write(6, *) "---"
-#endif
     lu2 = lu
     
     ! for upper triangular matrix U
@@ -289,54 +313,58 @@ contains
     call sort_mat(size, ipivot, lu2)
 
     max_err = 0.0d0
+    !$omp parallel do private(diff) reduction(max:max_err)
     do j = 1, size
        do i = 1, size
           diff = abs(a(i, j)-lu2(i, j))
           if (diff >= max_err) max_err = diff
        end do
     end do
+#if 1
+    write(6, *) "ipivot:"
+    do i = 1, size
+       write(6,'(i4, " : " ,i4)') i, ipivot(i)
+    end do
+    write(6, *) "---"
+    write(6, *) "L*U:"
+    do i = 1, size
+       write(6,'(8(1pe14.5))') (lu2(i, j), j = 1, size)
+    end do
+    write(6, *) "---"
     write(6, *) "LU decomposition maximum error:", max_err
-  end subroutine check_lu
+#endif
 
+  end subroutine check_lu
+#if 0
   subroutine sort_vec(size, ipivot, x)
     implicit none
     integer,intent(in) :: size
     integer,dimension(size),intent(in) :: ipivot
     real(dp),dimension(size),intent(inout) :: x
-    real(dp),dimension(2):: tmp
-    logical,dimension(size) :: done
+    real(dp),dimension(size) :: x_tmp
     integer :: i
 
-    done = .false.
+    x_tmp = 0.0d0
     do i = 1, size
-       if (done(i)) cycle
-       tmp(1)          = x(i)
-       tmp(2)          = x(ipivot(i))
-       x(i)            = tmp(2)
-       x(ipivot(i))    = tmp(1)
-       done(ipivot(i)) = .true.
+       x_tmp(ipivot(i)) = x(i)
     end do
-
+    x = x_tmp
+    
   end subroutine sort_vec
-
+#endif
   subroutine sort_mat(size, ipivot, a)
     implicit none
     integer,intent(in) :: size
     integer,dimension(size),intent(in) :: ipivot
     real(dp),dimension(size, size),intent(inout) :: a
-    real(dp),dimension(size, 2):: tmp
-    logical,dimension(size) :: done
+    real(dp),dimension(size, size) :: a_tmp
     integer :: i
 
-    done = .false.
+    a_tmp = 0.0d0
     do i = 1, size
-       if (done(i)) cycle
-       tmp(:, 1)       = a(i, :)
-       tmp(:, 2)       = a(ipivot(i), :)
-       a(i, :)         = tmp(:, 2)
-       a(ipivot(i), :) = tmp(:, 1)
-       done(ipivot(i)) = .true.
+       a_tmp(ipivot(i), :) = a(i, :)
     end do
+    a = a_tmp
 
   end subroutine sort_mat
 #endif ! _DEBUG
